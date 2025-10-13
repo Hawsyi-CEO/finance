@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import TransactionGroupSelect from '../components/TransactionGroupSelect';
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -15,6 +16,8 @@ const Transactions = () => {
     amount: '',
     date: new Date().toISOString().split('T')[0],
     category: '',
+    transaction_group_id: '',
+    expense_category: '',
     user_id: '',
     notes: ''
   });
@@ -51,6 +54,8 @@ const Transactions = () => {
         amount: '',
         date: new Date().toISOString().split('T')[0],
         category: '',
+        transaction_group_id: '',
+        expense_category: '',
         user_id: '',
         notes: ''
       });
@@ -68,6 +73,8 @@ const Transactions = () => {
       amount: transaction.amount,
       date: transaction.date,
       category: transaction.category || '',
+      transaction_group_id: transaction.transaction_group_id || '',
+      expense_category: transaction.expense_category || '',
       user_id: transaction.user_id,
       notes: transaction.notes || ''
     });
@@ -130,6 +137,9 @@ const Transactions = () => {
                   Deskripsi
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Kelompok
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Kategori
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -158,8 +168,19 @@ const Transactions = () => {
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {transaction.description}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {transaction.transaction_group ? (
+                        <div className="flex items-center">
+                          <span 
+                            className="w-3 h-3 rounded-full mr-2" 
+                            style={{ backgroundColor: transaction.transaction_group.color }}
+                          ></span>
+                          <span className="text-gray-900">{transaction.transaction_group.name}</span>
+                        </div>
+                      ) : '-'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {transaction.category || '-'}
+                      {transaction.expense_category || transaction.category || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -198,7 +219,7 @@ const Transactions = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
                     Belum ada transaksi
                   </td>
                 </tr>
@@ -243,6 +264,35 @@ const Transactions = () => {
                   <option value="expense">Pengeluaran</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Kelompok Transaksi
+                </label>
+                <TransactionGroupSelect
+                  value={formData.transaction_group_id}
+                  onChange={(value) => setFormData({...formData, transaction_group_id: value})}
+                  type={formData.type}
+                  placeholder="Pilih kelompok transaksi..."
+                />
+              </div>
+
+              {formData.type === 'expense' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Kategori Pengeluaran
+                  </label>
+                  <select
+                    value={formData.expense_category}
+                    onChange={(e) => setFormData({...formData, expense_category: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Pilih kategori...</option>
+                    <option value="assets">Aset</option>
+                    <option value="operational">Operasional</option>
+                  </select>
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -273,13 +323,14 @@ const Transactions = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Kategori
+                  Catatan
                 </label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Catatan tambahan (opsional)"
                 />
               </div>
               
