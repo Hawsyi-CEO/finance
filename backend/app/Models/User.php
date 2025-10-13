@@ -72,4 +72,36 @@ class User extends Authenticatable
     {
         return $this->role === 'user';
     }
+
+    public function employeePayments()
+    {
+        return $this->hasMany(EmployeePayment::class);
+    }
+
+    public function approvedPayments()
+    {
+        return $this->hasMany(EmployeePayment::class, 'approved_by');
+    }
+
+    // Calculate total payments for a specific period
+    public function getTotalPayments($period = null)
+    {
+        $query = $this->employeePayments()->where('status', 'paid');
+        
+        if ($period) {
+            $query->where('payment_period', $period);
+        }
+        
+        return $query->sum('amount');
+    }
+
+    // Get payment summary for the user
+    public function getPaymentSummary()
+    {
+        return [
+            'total_payments' => $this->employeePayments()->where('status', 'paid')->sum('amount'),
+            'pending_payments' => $this->employeePayments()->where('status', 'pending')->sum('amount'),
+            'this_month' => $this->getTotalPayments(date('Y-m')),
+        ];
+    }
 }

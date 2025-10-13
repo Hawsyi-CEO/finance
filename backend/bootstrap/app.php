@@ -24,6 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'stripe/*',
             'api/*',
         ]);
+
+        // Enable CORS
+        $middleware->web(append: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

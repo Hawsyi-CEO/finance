@@ -14,11 +14,21 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = Transaction::with(['user', 'createdBy']);
+        $query = Transaction::with(['user', 'createdBy', 'transactionGroup', 'employeePayment.employee']);
         
         // If user role is 'user', only show their own transactions
         if ($user->role === 'user') {
             $query->where('user_id', $user->id);
+        }
+        
+        // Filter by transaction group if specified
+        if ($request->has('group_id')) {
+            $query->where('transaction_group_id', $request->group_id);
+        }
+        
+        // Filter by type if specified
+        if ($request->has('type')) {
+            $query->where('type', $request->type);
         }
         
         $limit = $request->get('limit');
@@ -50,6 +60,10 @@ class TransactionController extends Controller
             'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
             'category' => 'nullable|string|max:100',
+            'expense_category' => 'nullable|in:asset,operational',
+            'expense_subcategory' => 'nullable|string|max:100',
+            'transaction_group_id' => 'nullable|exists:transaction_groups,id',
+            'employee_payment_id' => 'nullable|exists:employee_payments,id',
             'user_id' => 'nullable|exists:users,id',
             'notes' => 'nullable|string',
         ]);
@@ -67,12 +81,16 @@ class TransactionController extends Controller
             'amount' => $request->amount,
             'date' => $request->date,
             'category' => $request->category,
+            'expense_category' => $request->expense_category,
+            'expense_subcategory' => $request->expense_subcategory,
+            'transaction_group_id' => $request->transaction_group_id,
+            'employee_payment_id' => $request->employee_payment_id,
             'user_id' => $request->user_id ?? $user->id,
             'created_by' => $user->id,
             'notes' => $request->notes,
         ]);
 
-        $transaction->load(['user', 'createdBy']);
+        $transaction->load(['user', 'createdBy', 'transactionGroup', 'employeePayment']);
 
         return response()->json($transaction, 201);
     }
