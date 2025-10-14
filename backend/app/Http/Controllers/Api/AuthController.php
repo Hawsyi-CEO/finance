@@ -7,20 +7,55 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+        // Debug logging
+        Log::info('Login attempt - Raw request:', [
+            'all_data' => $request->all(),
+            'email' => $request->email,
+            'password_exists' => $request->has('password'),
+            'password_length' => strlen($request->password ?? ''),
+            'content_type' => $request->header('Content-Type'),
+            'method' => $request->method()
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed:', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+            throw $e;
+        }
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        $user = User::where('email', $request->email)->first();
+        
+        Log::info('User found:', [
+            'user_exists' => !!$user,
+            'user_email' => $user ? $user->email : null
+        ]);
+
+        if (!$user) {
+            Log::info('User not found for email: ' . $request->email);
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        $passwordMatches = Hash::check($request->password, $user->password);
+        Log::info('Password check result:', ['matches' => $passwordMatches]);
+
+        if (!$passwordMatches) {
+            Log::info('Password does not match for user: ' . $user->email);
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -28,12 +63,12 @@ class AuthController extends Controller
 
         $token = $user->createToken('api-token')->plainTextToken;
 
+        Log::info('Login successful for user: ' . $user->email);
+
         return response()->json([
             'user' => $user,
             'token' => $token,
-        ])->header('Access-Control-Allow-Origin', '*')
-          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        ]);
     }
 
     public function logout(Request $request)

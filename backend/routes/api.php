@@ -16,6 +16,74 @@ Route::get('/user', function (Request $request) {
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
+Route::options('/login', function() {
+    return response()->json(['status' => 'ok']);
+});
+
+// Debug route to check users
+Route::get('/debug/users', function() {
+    $users = \App\Models\User::all(['id', 'name', 'email', 'role']);
+    return response()->json($users);
+});
+
+// Debug route to test password
+Route::post('/debug/test-password', function(\Illuminate\Http\Request $request) {
+    $user = \App\Models\User::where('email', $request->email)->first();
+    if (!$user) {
+        return response()->json(['error' => 'User not found']);
+    }
+    
+    $passwordCheck = \Illuminate\Support\Facades\Hash::check($request->password, $user->password);
+    
+    return response()->json([
+        'user_exists' => true,
+        'password_matches' => $passwordCheck,
+        'stored_hash' => $user->password,
+        'input_password' => $request->password
+    ]);
+});
+
+// Simple test route
+Route::post('/debug/test', function(\Illuminate\Http\Request $request) {
+    return response()->json([
+        'message' => 'Test successful',
+        'data' => $request->all(),
+        'headers' => $request->headers->all()
+    ]);
+});
+
+// Simple login test route
+Route::post('/debug/simple-login', function(\Illuminate\Http\Request $request) {
+    try {
+        $email = $request->input('email');
+        $password = $request->input('password');
+        
+        if (!$email || !$password) {
+            return response()->json(['error' => 'Email and password required'], 400);
+        }
+        
+        $user = \App\Models\User::where('email', $email)->first();
+        
+        if (!$user) {
+            return response()->json(['error' => 'User not found'], 404);
+        }
+        
+        if (!\Illuminate\Support\Facades\Hash::check($password, $user->password)) {
+            return response()->json(['error' => 'Password incorrect'], 401);
+        }
+        
+        $token = $user->createToken('debug-token')->plainTextToken;
+        
+        return response()->json([
+            'success' => true,
+            'user' => $user,
+            'token' => $token
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Exception: ' . $e->getMessage()], 500);
+    }
+});
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -26,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     
     // Transactions
+    Route::get('/transactions/statistics', [TransactionController::class, 'statistics']);
     Route::apiResource('transactions', TransactionController::class);
     
     // Transaction Groups

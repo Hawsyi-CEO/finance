@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 
 class TransactionController extends Controller
 {
@@ -14,39 +16,34 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = Transaction::with(['user', 'createdBy', 'transactionGroup', 'employeePayment.employee']);
+        $query = Transaction::with(['user:id,name,email', 'createdBy:id,name', 'transactionGroup:id,name,color', 'employeePayment:id,employee_name,amount']);
         
         // If user role is 'user', only show their own transactions
         if ($user->role === 'user') {
             $query->where('user_id', $user->id);
         }
         
-        // Filter by transaction group if specified
-        if ($request->has('group_id')) {
-            $query->where('transaction_group_id', $request->group_id);
-        }
-        
-        // Filter by type if specified
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
-        }
-        
         $limit = $request->get('limit');
         if ($limit) {
             $transactions = $query->orderBy('created_at', 'desc')->limit($limit)->get();
+            return response()->json([
+                'success' => true,
+                'data' => $transactions,
+                'meta' => null
+            ]);
         } else {
             $transactions = $query->orderBy('created_at', 'desc')->paginate(15);
+            return response()->json([
+                'success' => true,
+                'data' => $transactions->items(),
+                'meta' => [
+                    'current_page' => $transactions->currentPage(),
+                    'last_page' => $transactions->lastPage(),
+                    'per_page' => $transactions->perPage(),
+                    'total' => $transactions->total(),
+                ]
+            ]);
         }
-        
-        return response()->json([
-            'data' => $transactions->items ?? $transactions,
-            'meta' => $transactions instanceof \Illuminate\Pagination\LengthAwarePaginator ? [
-                'current_page' => $transactions->currentPage(),
-                'last_page' => $transactions->lastPage(),
-                'per_page' => $transactions->perPage(),
-                'total' => $transactions->total(),
-            ] : null
-        ]);
     }
 
     /**
@@ -54,19 +51,26 @@ class TransactionController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'description' => 'required|string|max:255',
             'type' => 'required|in:income,expense',
             'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
             'category' => 'nullable|string|max:100',
-            'expense_category' => 'nullable|in:asset,operational',
+            'expense_category' => 'nullable|string|max:100',
             'expense_subcategory' => 'nullable|string|max:100',
             'transaction_group_id' => 'nullable|exists:transaction_groups,id',
             'employee_payment_id' => 'nullable|exists:employee_payments,id',
             'user_id' => 'nullable|exists:users,id',
             'notes' => 'nullable|string',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         $user = $request->user();
         
@@ -160,6 +164,39 @@ class TransactionController extends Controller
         }
 
         $transaction->delete();
-        return response()->json(['message' => 'Transaction deleted successfully']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaction deleted successfully'
+        ]);
+    }
+
+    /**
+     * Get transaction statistics.
+     */
+    public function statistics(Request $request)
+    {
+        $user = $request->user();
+        
+        $query = Transaction::query();
+        
+        // Filter by user role
+        if ($user->role === 'user') {
+            $query->where('user_id', $user->id);
+        }
+        
+        $totalIncome = (clone $query)->where('type', 'income')->sum('amount');
+        $totalExpense = (clone $query)->where('type', 'expense')->sum('amount');
+        $balance = $totalIncome - $totalExpense;
+        $transactionCount = $query->count();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_income' => $totalIncome,
+                'total_expense' => $totalExpense,
+                'balance' => $balance,
+                'transaction_count' => $transactionCount
+            ]
+        ]);
     }
 }

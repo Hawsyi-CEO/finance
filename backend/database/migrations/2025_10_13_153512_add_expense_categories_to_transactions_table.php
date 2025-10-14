@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            //
+            $table->string('expense_category')->nullable()->after('category');
+            $table->string('expense_subcategory')->nullable()->after('expense_category');
+            $table->unsignedBigInteger('employee_payment_id')->nullable()->after('expense_subcategory');
         });
     }
 
@@ -22,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
-            //
+            $table->dropColumn(['expense_category', 'expense_subcategory', 'employee_payment_id']);
         });
     }
 };

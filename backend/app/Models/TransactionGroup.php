@@ -9,22 +9,25 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class TransactionGroup extends Model
 {
     protected $fillable = [
-        'user_id',
         'name',
+        'description',
         'type',
-        'category',
+        'color',
+        'is_active',
+        'created_by',
     ];
 
     protected $casts = [
-        'user_id' => 'integer',
+        'created_by' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     /**
-     * Relasi ke user yang memiliki grup
+     * Relasi ke user yang membuat grup
      */
-    public function user(): BelongsTo
+    public function createdBy(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**
