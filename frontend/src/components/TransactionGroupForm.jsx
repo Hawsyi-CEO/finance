@@ -16,10 +16,12 @@ const TransactionGroupForm = ({
   });
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     
     try {
       await onSubmit(formData);
@@ -32,6 +34,7 @@ const TransactionGroupForm = ({
       onClose();
     } catch (error) {
       console.error('Error submitting form:', error);
+      setError(error.response?.data?.error || 'Terjadi kesalahan saat menyimpan kelompok transaksi');
     } finally {
       setLoading(false);
     }
@@ -55,6 +58,12 @@ const TransactionGroupForm = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nama Kelompok *

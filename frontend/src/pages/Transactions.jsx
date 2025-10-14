@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { Link } from 'react-router-dom';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import TransactionGroupSelect from '../components/TransactionGroupSelect';
+import ValidationError from '../components/ValidationError';
+import { 
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  FolderIcon
+} from '@heroicons/react/24/outline';
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -22,13 +35,17 @@ const Transactions = () => {
     notes: ''
   });
 
+  const [saving, setSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+
   useEffect(() => {
     fetchTransactions();
   }, []);
 
   const fetchTransactions = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/transactions');
+      const response = await api.get('/transactions');
       setTransactions(response.data.data || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -39,13 +56,19 @@ const Transactions = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
+    setValidationErrors({});
+    
     try {
+      console.log('Submitting transaction data:', formData);
+      
       if (editingTransaction) {
-        await axios.put(`http://localhost:8000/api/transactions/${editingTransaction.id}`, formData);
+        await api.put(`/transactions/${editingTransaction.id}`, formData);
       } else {
-        await axios.post('http://localhost:8000/api/transactions', formData);
+        await api.post('/transactions', formData);
       }
       
+      // Close modal and reset form
       setShowModal(false);
       setEditingTransaction(null);
       setFormData({
@@ -59,9 +82,23 @@ const Transactions = () => {
         user_id: '',
         notes: ''
       });
-      fetchTransactions();
+      
+      // Refresh data and show success message
+      await fetchTransactions();
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+      
     } catch (error) {
       console.error('Error saving transaction:', error);
+      console.error('Error response:', error.response?.data);
+      
+      if (error.response?.status === 422) {
+        setValidationErrors(error.response.data.errors || {});
+      } else {
+        alert('Terjadi kesalahan saat menyimpan transaksi');
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -84,7 +121,7 @@ const Transactions = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
       try {
-        await axios.delete(`http://localhost:8000/api/transactions/${id}`);
+        await api.delete(`/transactions/${id}`);
         fetchTransactions();
       } catch (error) {
         console.error('Error deleting transaction:', error);
@@ -109,6 +146,13 @@ const Transactions = () => {
 
   return (
     <div className="space-y-6">
+      {/* Success Notification */}
+      {showSuccess && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+          <span className="block sm:inline">✅ Transaksi berhasil disimpan!</span>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Transaksi</h1>
         {(user?.role === 'admin' || user?.role === 'finance') && (
@@ -238,6 +282,8 @@ const Transactions = () => {
             </h3>
             
             <form onSubmit={handleSubmit} className="space-y-4">
+              <ValidationError errors={validationErrors} />
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Deskripsi
@@ -347,9 +393,22 @@ const Transactions = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={saving}
+                  className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center space-x-2 ${
+                    saving 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
-                  {editingTransaction ? 'Update' : 'Simpan'}
+                  {saving && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  )}
+                  <span>
+                    {saving 
+                      ? 'Menyimpan...' 
+                      : (editingTransaction ? 'Update' : 'Simpan')
+                    }
+                  </span>
                 </button>
               </div>
             </form>

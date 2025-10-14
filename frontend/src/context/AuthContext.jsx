@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -16,13 +16,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
 
-  // Set up axios defaults
+  // Set up api defaults - handled in api interceptor
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
+    // Api interceptor will handle token automatically
   }, [token]);
 
   // Check if user is authenticated on mount
@@ -30,7 +26,7 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       if (token) {
         try {
-          const response = await axios.get('http://localhost:8000/api/user');
+          const response = await api.get('/user');
           setUser(response.data);
         } catch (error) {
           console.error('Auth check failed:', error);
@@ -45,10 +41,14 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/login', {
+      console.log('Attempting login with:', { email }); // Debug log
+      
+      const response = await api.post('/login', {
         email,
         password,
       });
+      
+      console.log('Login response:', response.data); // Debug log
       
       const { user, token } = response.data;
       
@@ -58,9 +58,15 @@ export const AuthProvider = ({ children }) => {
       
       return { success: true };
     } catch (error) {
+      console.error('Login error:', error.response?.data || error.message); // Debug log
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.errors?.email?.[0] || 
+                          'Login failed';
+      
       return { 
         success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+        message: errorMessage
       };
     }
   };
@@ -69,7 +75,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
   };
 
   const value = {

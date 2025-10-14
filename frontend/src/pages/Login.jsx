@@ -100,9 +100,9 @@ const Login = () => {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Demo accounts:<br/>
-              Admin: admin@vertinova.com / password<br/>
-              Finance: finance@vertinova.com / password<br/>
-              User: user@vertinova.com / password
+              Admin: admin@vertinova.com / admin123<br/>
+              Finance: finance@vertinova.com / finance123<br/>
+              User: user@vertinova.com / user123
             </p>
           </div>
         </form>

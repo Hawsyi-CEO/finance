@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const Users = () => {
@@ -27,7 +27,7 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/users');
+      const response = await api.get('/users');
       setUsers(response.data.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
