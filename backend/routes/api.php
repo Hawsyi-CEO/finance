@@ -20,37 +20,7 @@ Route::options('/login', function() {
     return response()->json(['status' => 'ok']);
 });
 
-// Debug route to check users
-Route::get('/debug/users', function() {
-    $users = \App\Models\User::all(['id', 'name', 'email', 'role']);
-    return response()->json($users);
-});
 
-// Debug route to test password
-Route::post('/debug/test-password', function(\Illuminate\Http\Request $request) {
-    $user = \App\Models\User::where('email', $request->email)->first();
-    if (!$user) {
-        return response()->json(['error' => 'User not found']);
-    }
-    
-    $passwordCheck = \Illuminate\Support\Facades\Hash::check($request->password, $user->password);
-    
-    return response()->json([
-        'user_exists' => true,
-        'password_matches' => $passwordCheck,
-        'stored_hash' => $user->password,
-        'input_password' => $request->password
-    ]);
-});
-
-// Simple test route
-Route::post('/debug/test', function(\Illuminate\Http\Request $request) {
-    return response()->json([
-        'message' => 'Test successful',
-        'data' => $request->all(),
-        'headers' => $request->headers->all()
-    ]);
-});
 
 // Simple login test route
 Route::post('/debug/simple-login', function(\Illuminate\Http\Request $request) {
@@ -95,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Transactions
     Route::get('/transactions/statistics', [TransactionController::class, 'statistics']);
+    Route::get('/transactions/reports', [TransactionController::class, 'reports']);
     Route::apiResource('transactions', TransactionController::class);
     
     // Transaction Groups
