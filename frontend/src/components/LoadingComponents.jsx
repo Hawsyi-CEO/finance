@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LoadingSpinner = ({ size = 'md', color = 'blue' }) => {
+const LoadingSpinner = ({ size = 'md' }) => {
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-8 h-8',
@@ -8,26 +8,18 @@ const LoadingSpinner = ({ size = 'md', color = 'blue' }) => {
     xl: 'w-16 h-16'
   };
 
-  const colorClasses = {
-    blue: 'border-blue-600',
-    purple: 'border-purple-600',
-    green: 'border-green-600',
-    red: 'border-red-600',
-    gray: 'border-gray-600'
-  };
-
   return (
-    <div className={`inline-block ${sizeClasses[size]} border-2 border-gray-200 border-t-2 ${colorClasses[color]} rounded-full animate-spin`}></div>
+    <div className={`inline-block ${sizeClasses[size]} border-2 border-gray-100 border-t-2 border-t-slate-800 rounded-full animate-spin`}></div>
   );
 };
 
 const LoadingCard = () => (
-  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/20 animate-pulse">
+  <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 animate-pulse">
     <div className="flex items-center space-x-4">
-      <div className="w-12 h-12 bg-gradient-to-r from-slate-200 to-slate-300 rounded-xl"></div>
+      <div className="w-12 h-12 bg-gray-200 rounded-xl"></div>
       <div className="flex-1 space-y-2">
-        <div className="h-4 bg-gradient-to-r from-slate-200 to-slate-300 rounded-lg w-3/4"></div>
-        <div className="h-3 bg-gradient-to-r from-slate-200 to-slate-300 rounded-lg w-1/2"></div>
+        <div className="h-4 bg-gray-200 rounded-lg w-3/4"></div>
+        <div className="h-3 bg-gray-100 rounded-lg w-1/2"></div>
       </div>
     </div>
   </div>

@@ -52,7 +52,7 @@ const Users = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-slate-800"></div>
       </div>
     );
   }
@@ -98,7 +98,7 @@ const Users = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mr-3">
+                        <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center mr-3">
                           <span className="text-white font-medium text-sm">
                             {user.name?.charAt(0)?.toUpperCase()}
                           </span>

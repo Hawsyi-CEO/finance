@@ -25,11 +25,23 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       if (token) {
+        // Check if user data exists in localStorage first
+        const cachedUser = localStorage.getItem('user');
+        if (cachedUser) {
+          try {
+            setUser(JSON.parse(cachedUser));
+            setLoading(false);
+            return;
+          } catch (e) {
+            localStorage.removeItem('user');
+          }
+        }
+        
         try {
           const response = await api.get('/user');
           setUser(response.data);
+          localStorage.setItem('user', JSON.stringify(response.data));
         } catch (error) {
-          console.error('Auth check failed:', error);
           logout();
         }
       }
@@ -41,25 +53,20 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      console.log('Attempting login with:', { email }); // Debug log
-      
       const response = await api.post('/login', {
         email,
         password,
       });
-      
-      console.log('Login response:', response.data); // Debug log
       
       const { user, token } = response.data;
       
       setUser(user);
       setToken(token);
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
       
       return { success: true };
     } catch (error) {
-      console.error('Login error:', error.response?.data || error.message); // Debug log
-      
       const errorMessage = error.response?.data?.message || 
                           error.response?.data?.errors?.email?.[0] || 
                           'Login failed';
@@ -75,6 +82,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   const value = {

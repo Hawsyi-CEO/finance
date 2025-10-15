@@ -116,7 +116,7 @@ const TransactionGroups = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
       </div>
     );
   }
@@ -140,7 +140,7 @@ const TransactionGroups = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
-              <FolderIcon className="h-8 w-8 text-blue-600" />
+              <FolderIcon className="h-8 w-8 text-slate-800" />
               <span>Kelompok Transaksi</span>
             </h1>
             <p className="text-gray-600 mt-1">Kelola kategori pemasukan dan pengeluaran</p>
@@ -149,7 +149,7 @@ const TransactionGroups = () => {
           {(user?.role === 'admin' || user?.role === 'finance') && (
             <button
               onClick={() => setShowModal(true)}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <PlusIcon className="h-5 w-5" />
               <span>Tambah Kelompok</span>
@@ -181,7 +181,7 @@ const TransactionGroups = () => {
           
           <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
             <div className="flex items-center">
-              <ChartBarIcon className="h-8 w-8 text-blue-600" />
+              <ChartBarIcon className="h-8 w-8 text-slate-800" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-blue-900">Total Kelompok</p>
                 <p className="text-2xl font-bold text-blue-700">{groups.length}</p>
@@ -205,14 +205,14 @@ const TransactionGroups = () => {
                 onClick={() => setActiveTab(tab.key)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors duration-200 ${
                   activeTab === tab.key
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-slate-500 text-slate-800'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 {tab.name}
                 <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
                   activeTab === tab.key 
-                    ? 'bg-blue-100 text-blue-600' 
+                    ? 'bg-slate-100 text-slate-800' 
                     : 'bg-gray-100 text-gray-900'
                 }`}>
                   {tab.count}
@@ -261,7 +261,7 @@ const TransactionGroups = () => {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleEdit(group)}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-colors"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
@@ -374,7 +374,7 @@ const TransactionGroups = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-105"
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-slate-800 to-slate-700 text-white rounded-lg hover:from-slate-700 hover:to-slate-800 transition-all transform hover:scale-105"
                 >
                   {editingGroup ? 'Perbarui' : 'Simpan'}
                 </button>

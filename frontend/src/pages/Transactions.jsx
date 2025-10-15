@@ -18,10 +18,22 @@ import {
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
+  const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const { user } = useAuth();
+
+  // Filter states
+  const [filters, setFilters] = useState({
+    search: '',
+    type: 'all',
+    category: 'all',
+    dateFrom: '',
+    dateTo: '',
+    sortBy: 'date',
+    sortOrder: 'desc'
+  });
 
   const [formData, setFormData] = useState({
     description: '',
@@ -46,12 +58,115 @@ const Transactions = () => {
   const fetchTransactions = async () => {
     try {
       const response = await api.get('/transactions');
-      setTransactions(response.data.data || []);
+      const data = response.data.data || [];
+      setTransactions(data);
+      setFilteredTransactions(data);
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Apply filters whenever transactions or filters change
+  useEffect(() => {
+    applyFilters();
+  }, [transactions, filters]);
+
+  const applyFilters = () => {
+    let filtered = [...transactions];
+
+    // Search filter
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(transaction => 
+        transaction.description?.toLowerCase().includes(searchLower) ||
+        transaction.category?.toLowerCase().includes(searchLower) ||
+        transaction.expense_category?.toLowerCase().includes(searchLower) ||
+        transaction.user?.name?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Type filter
+    if (filters.type !== 'all') {
+      filtered = filtered.filter(transaction => transaction.type === filters.type);
+    }
+
+    // Category filter
+    if (filters.category !== 'all') {
+      filtered = filtered.filter(transaction => 
+        transaction.category === filters.category || 
+        transaction.expense_category === filters.category
+      );
+    }
+
+    // Date range filter
+    if (filters.dateFrom) {
+      filtered = filtered.filter(transaction => 
+        new Date(transaction.date) >= new Date(filters.dateFrom)
+      );
+    }
+    if (filters.dateTo) {
+      filtered = filtered.filter(transaction => 
+        new Date(transaction.date) <= new Date(filters.dateTo)
+      );
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (filters.sortBy) {
+        case 'amount':
+          aValue = Math.abs(parseFloat(a.amount) || 0);
+          bValue = Math.abs(parseFloat(b.amount) || 0);
+          break;
+        case 'description':
+          aValue = a.description?.toLowerCase() || '';
+          bValue = b.description?.toLowerCase() || '';
+          break;
+        case 'type':
+          aValue = a.type || '';
+          bValue = b.type || '';
+          break;
+        default: // date
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+      }
+      
+      if (filters.sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    setFilteredTransactions(filtered);
+  };
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      type: 'all',
+      category: 'all',
+      dateFrom: '',
+      dateTo: '',
+      sortBy: 'date',
+      sortOrder: 'desc'
+    });
+  };
+
+  const getUniqueCategories = () => {
+    const categories = new Set();
+    transactions.forEach(transaction => {
+      if (transaction.category) categories.add(transaction.category);
+      if (transaction.expense_category) categories.add(transaction.expense_category);
+    });
+    return Array.from(categories).sort();
   };
 
   const handleSubmit = async (e) => {
@@ -139,7 +254,7 @@ const Transactions = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-slate-800"></div>
       </div>
     );
   }
@@ -153,19 +268,189 @@ const Transactions = () => {
         </div>
       )}
 
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Transaksi</h1>
-        {(user?.role === 'admin' || user?.role === 'finance') && (
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+              <FolderIcon className="w-8 h-8 mr-3 text-slate-800" />
+              Transaksi
+            </h1>
+            <p className="text-slate-600 mt-1">
+              Kelola semua transaksi keuangan dengan mudah
+            </p>
+          </div>
+          {(user?.role === 'admin' || user?.role === 'finance') && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2"
+            >
+              <PlusIcon className="w-5 h-5" />
+              <span>Tambah Transaksi</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-800 flex items-center">
+            <FunnelIcon className="w-5 h-5 mr-2" />
+            Filter & Pencarian
+          </h2>
           <button
-            onClick={() => setShowModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2"
+            onClick={clearFilters}
+            className="text-sm text-slate-600 hover:text-slate-800 underline"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Tambah Transaksi</span>
+            Reset Filter
           </button>
-        )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Search */}
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Cari Transaksi
+            </label>
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Cari deskripsi, kategori, atau user..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800"
+              />
+            </div>
+          </div>
+
+          {/* Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Tipe Transaksi
+            </label>
+            <select
+              value={filters.type}
+              onChange={(e) => handleFilterChange('type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800"
+            >
+              <option value="all">Semua Tipe</option>
+              <option value="income">Pemasukan</option>
+              <option value="expense">Pengeluaran</option>
+            </select>
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Kategori
+            </label>
+            <select
+              value={filters.category}
+              onChange={(e) => handleFilterChange('category', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800"
+            >
+              <option value="all">Semua Kategori</option>
+              {getUniqueCategories().map(category => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Date From */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Dari Tanggal
+            </label>
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800"
+            />
+          </div>
+
+          {/* Date To */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Sampai Tanggal
+            </label>
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800"
+            />
+          </div>
+
+          {/* Sort By */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Urutkan Berdasarkan
+            </label>
+            <select
+              value={filters.sortBy}
+              onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800"
+            >
+              <option value="date">Tanggal</option>
+              <option value="amount">Jumlah</option>
+              <option value="description">Deskripsi</option>
+              <option value="type">Tipe</option>
+            </select>
+          </div>
+
+          {/* Sort Order */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Urutan
+            </label>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleFilterChange('sortOrder', 'desc')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  filters.sortOrder === 'desc'
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <ArrowDownIcon className="w-4 h-4 inline mr-1" />
+                Turun
+              </button>
+              <button
+                onClick={() => handleFilterChange('sortOrder', 'asc')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  filters.sortOrder === 'asc'
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <ArrowUpIcon className="w-4 h-4 inline mr-1" />
+                Naik
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-sm text-slate-600">
+            Menampilkan <span className="font-semibold">{filteredTransactions.length}</span> dari <span className="font-semibold">{transactions.length}</span> transaksi
+            {filters.search && (
+              <span> • Pencarian: "<span className="font-medium">{filters.search}</span>"</span>
+            )}
+            {filters.type !== 'all' && (
+              <span> • Tipe: <span className="font-medium">{filters.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}</span></span>
+            )}
+            {filters.category !== 'all' && (
+              <span> • Kategori: <span className="font-medium">{filters.category}</span></span>
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Transactions Table */}
@@ -203,8 +488,8 @@ const Transactions = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {transactions.length > 0 ? (
-                transactions.map((transaction) => (
+              {filteredTransactions.length > 0 ? (
+                filteredTransactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(transaction.date).toLocaleDateString('id-ID')}
@@ -247,7 +532,7 @@ const Transactions = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button
                           onClick={() => handleEdit(transaction)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-slate-800 hover:text-slate-600"
                         >
                           Edit
                         </button>
@@ -264,7 +549,7 @@ const Transactions = () => {
               ) : (
                 <tr>
                   <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
-                    Belum ada transaksi
+                    {transactions.length === 0 ? 'Belum ada transaksi' : 'Tidak ada transaksi yang sesuai dengan filter'}
                   </td>
                 </tr>
               )}
@@ -397,7 +682,7 @@ const Transactions = () => {
                   className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center space-x-2 ${
                     saving 
                       ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-600 hover:bg-blue-700'
+                      : 'bg-slate-800 hover:bg-slate-700'
                   }`}
                 >
                   {saving && (

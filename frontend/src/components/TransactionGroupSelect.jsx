@@ -102,7 +102,7 @@ const TransactionGroupSelect = ({
         <select
           value={value || ''}
           onChange={handleSelectChange}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800 transition-colors bg-white"
           required={required}
         >
           <option value="">{placeholder}</option>
@@ -121,7 +121,7 @@ const TransactionGroupSelect = ({
             <button
               type="button"
               onClick={() => openCreateForm(type)}
-              className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+              className="p-1 text-slate-800 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
               title={`Buat kelompok ${type === 'income' ? 'pemasukan' : 'pengeluaran'} baru`}
             >
               <PlusIcon className="h-4 w-4" />

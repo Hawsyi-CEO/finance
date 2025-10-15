@@ -1,8 +1,18 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import {
+  HomeIcon,
+  CreditCardIcon,
+  FolderIcon,
+  DocumentChartBarIcon,
+  ChartBarIcon,
+  UsersIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
+} from '@heroicons/react/24/outline';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
   const { user } = useAuth();
 
@@ -10,39 +20,41 @@ const Sidebar = () => {
     {
       name: 'Dashboard',
       href: '/dashboard',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-        </svg>
-      ),
+      icon: HomeIcon,
+      shortName: 'Dashboard'
     },
     {
       name: 'Transaksi',
       href: '/transactions',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-      ),
+      icon: CreditCardIcon,
+      shortName: 'Transaksi'
     },
     {
       name: 'Kelompok Transaksi',
       href: '/transaction-groups',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14-7H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2z" />
-        </svg>
-      ),
+      icon: FolderIcon,
+      shortName: 'Kelompok',
+      roles: ['admin', 'finance'],
+    },
+    {
+      name: 'Laporan Keuangan',
+      href: '/reports',
+      icon: DocumentChartBarIcon,
+      shortName: 'Laporan',
+      roles: ['admin', 'finance'],
+    },
+    {
+      name: 'Statistik',
+      href: '/statistics',
+      icon: ChartBarIcon,
+      shortName: 'Statistik',
       roles: ['admin', 'finance'],
     },
     {
       name: 'Users',
       href: '/users',
-      icon: (
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-        </svg>
-      ),
+      icon: UsersIcon,
+      shortName: 'Users',
       roles: ['admin'],
     },
   ];
@@ -52,31 +64,97 @@ const Sidebar = () => {
   );
 
   return (
-    <div className="bg-white w-64 min-h-screen shadow-lg">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold text-blue-600">Vertinova Finance</h1>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        fixed lg:static inset-y-0 left-0 z-30
+        ${isOpen && !window.matchMedia('(min-width: 1024px)').matches ? 'w-64' : isOpen ? 'w-64' : 'w-16'}
+        bg-white min-h-screen shadow-lg border-r border-gray-100
+        transition-all duration-300 ease-in-out
+        flex flex-col
+      `}>
+        
+        {/* Header with Toggle */}
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          {isOpen && (
+            <h1 className="text-xl font-bold text-slate-800 truncate">
+              Vertinova Finance
+            </h1>
+          )}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-2 rounded-lg hover:bg-slate-100 transition-colors hidden lg:flex"
+          >
+            {isOpen ? (
+              <ChevronLeftIcon className="w-5 h-5 text-slate-600" />
+            ) : (
+              <ChevronRightIcon className="w-5 h-5 text-slate-600" />
+            )}
+          </button>
+        </div>
+        
+        {/* Navigation */}
+        <nav className="flex-1 py-4">
+          {filteredMenuItems.map((item) => {
+            const isActive = location.pathname === item.href;
+            const IconComponent = item.icon;
+            
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={`
+                  flex items-center mx-2 mb-1 px-3 py-3 rounded-lg
+                  transition-all duration-200 ease-in-out
+                  ${isActive
+                    ? 'bg-slate-800 text-white shadow-md'
+                    : 'text-slate-700 hover:bg-slate-50 hover:text-slate-800'
+                  }
+                `}
+                title={!isOpen ? item.name : ''}
+              >
+                <IconComponent className="w-5 h-5 flex-shrink-0" />
+                {isOpen && (
+                  <span className="ml-3 font-medium truncate">
+                    {item.name}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User Info (when expanded) */}
+        {isOpen && user && (
+          <div className="p-4 border-t border-gray-100">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">
+                  {user.name?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-slate-800 truncate">
+                  {user.name}
+                </p>
+                <p className="text-xs text-slate-500 capitalize">
+                  {user.role}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-      
-      <nav className="mt-6">
-        {filteredMenuItems.map((item) => {
-          const isActive = location.pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={`flex items-center px-6 py-3 text-left hover:bg-blue-50 transition-colors ${
-                isActive
-                  ? 'bg-blue-100 text-blue-600 border-r-4 border-blue-600'
-                  : 'text-gray-700 hover:text-blue-600'
-              }`}
-            >
-              <span className="mr-3">{item.icon}</span>
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
+    </>
   );
 };
 
