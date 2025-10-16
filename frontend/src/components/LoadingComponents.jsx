@@ -52,7 +52,7 @@ const LoadingPage = () => (
   <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 p-6">
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Header skeleton */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 rounded-3xl p-8 text-white shadow-2xl animate-pulse">
+      <div className="bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 rounded-3xl p-8 text-white shadow-2xl animate-pulse">
         <div className="flex items-center justify-between">
           <div className="space-y-3">
             <div className="h-8 bg-white/20 rounded-lg w-64"></div>

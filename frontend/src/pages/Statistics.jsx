@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCache } from '../context/CacheContext';
 import api from '../services/api';
 import Charts from '../components/Charts';
 import {
@@ -13,6 +14,7 @@ import {
 
 const Statistics = () => {
   const { user } = useAuth();
+  const { isCacheValid, getCache, setCache } = useCache();
   const [loading, setLoading] = useState(false);
   const [dateFilter, setDateFilter] = useState('monthly');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -32,6 +34,17 @@ const Statistics = () => {
   }, [dateFilter, selectedYear, selectedMonth]);
 
   const fetchStatistics = async () => {
+    const cacheKey = { type: dateFilter, year: selectedYear, month: selectedMonth };
+    
+    // Check if we have valid cached data
+    if (isCacheValid('statistics', 5 * 60 * 1000, cacheKey)) {
+      const cachedData = getCache('statistics', cacheKey);
+      if (cachedData.data) {
+        setStatistics(cachedData.data);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -40,11 +53,11 @@ const Statistics = () => {
         ...(dateFilter === 'monthly' && { month: selectedMonth })
       });
 
-      const response = await api.get(`/reports?${params}`);
+      const response = await api.get(`/transactions/reports?${params}`);
       
       if (response.data.success) {
         const data = response.data.data;
-        setStatistics({
+        const processedStatistics = {
           totalIncome: data.income || 0,
           totalExpense: data.expenses || 0,
           netIncome: (data.income || 0) - (data.expenses || 0),
@@ -52,7 +65,12 @@ const Statistics = () => {
           topCategories: processTopCategories(data.transactions || []),
           monthlyTrend: processMonthlyTrend(data.transactions || []),
           dailyTransactions: processDailyTransactions(data.transactions || [])
-        });
+        };
+        
+        setStatistics(processedStatistics);
+        
+        // Cache the processed data
+        setCache('statistics', { data: processedStatistics }, cacheKey);
       }
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -362,11 +380,11 @@ const Statistics = () => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start">
               <div className="bg-blue-100 p-2 rounded-lg mr-3">
-                <ArrowTrendingUpIcon className="h-5 w-5 text-blue-600" />
+                <ArrowTrendingUpIcon className="h-5 w-5 text-slate-800" />
               </div>
               <div>
-                <h4 className="font-medium text-blue-800">Pemasukan Tertinggi</h4>
-                <p className="text-sm text-blue-600 mt-1">
+                <h4 className="font-medium text-slate-800">Pemasukan Tertinggi</h4>
+                <p className="text-sm text-slate-800 mt-1">
                   {statistics.topCategories.length > 0 
                     ? `Kategori ${statistics.topCategories[0]?.name} dengan ${formatCurrencyFull(statistics.topCategories[0]?.amount)}`
                     : 'Belum ada data kategori'

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import TransactionGroupSelect from '../components/TransactionGroupSelect';
-import ValidationError from '../components/ValidationError';
+import { useCache } from '../context/CacheContext';
+import SidebarModal from '../components/SidebarModal';
+import ModernTransactionForm from '../components/ModernTransactionForm';
 import { 
   PlusIcon,
   PencilIcon,
@@ -17,6 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Transactions = () => {
+  const { isCacheValid, getCache, setCache, clearCache } = useCache();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,11 +58,26 @@ const Transactions = () => {
   }, []);
 
   const fetchTransactions = async () => {
+    // Check if we have valid cached data
+    if (isCacheValid('transactions', 3 * 60 * 1000)) {
+      const cachedData = getCache('transactions');
+      if (cachedData.data) {
+        setTransactions(cachedData.data);
+        setFilteredTransactions(cachedData.data);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const response = await api.get('/transactions');
       const data = response.data.data || [];
       setTransactions(data);
       setFilteredTransactions(data);
+      
+      // Cache the transactions data
+      setCache('transactions', { data });
+      
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
@@ -198,7 +215,11 @@ const Transactions = () => {
         notes: ''
       });
       
-      // Refresh data and show success message
+      // Clear cache and refresh data
+      clearCache('transactions');
+      clearCache('dashboard');
+      clearCache('statistics');
+      clearCache('reports');
       await fetchTransactions();
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
@@ -237,6 +258,11 @@ const Transactions = () => {
     if (window.confirm('Apakah Anda yakin ingin menghapus transaksi ini?')) {
       try {
         await api.delete(`/transactions/${id}`);
+        // Clear cache and refresh data
+        clearCache('transactions');
+        clearCache('dashboard');
+        clearCache('statistics');
+        clearCache('reports');
         fetchTransactions();
       } catch (error) {
         console.error('Error deleting transaction:', error);
@@ -263,8 +289,20 @@ const Transactions = () => {
     <div className="space-y-6">
       {/* Success Notification */}
       {showSuccess && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">✅ Transaksi berhasil disimpan!</span>
+        <div className="fixed top-4 right-4 z-50 animate-slide-in-right">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-3 max-w-sm">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <p className="font-medium">Berhasil!</p>
+              <p className="text-sm text-green-100">Transaksi berhasil disimpan</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -282,10 +320,12 @@ const Transactions = () => {
           {(user?.role === 'admin' || user?.role === 'finance') && (
             <button
               onClick={() => setShowModal(true)}
-              className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2"
+              className="group bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-3 transform hover:scale-105"
             >
-              <PlusIcon className="w-5 h-5" />
-              <span>Tambah Transaksi</span>
+              <div className="p-1 bg-white bg-opacity-20 rounded-lg group-hover:bg-opacity-30 transition-all">
+                <PlusIcon className="w-5 h-5" />
+              </div>
+              <span className="font-medium">Tambah Transaksi</span>
             </button>
           )}
         </div>
@@ -558,148 +598,29 @@ const Transactions = () => {
         </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              {editingTransaction ? 'Edit Transaksi' : 'Tambah Transaksi'}
-            </h3>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <ValidationError errors={validationErrors} />
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deskripsi
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipe
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({...formData, type: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="income">Pemasukan</option>
-                  <option value="expense">Pengeluaran</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Kelompok Transaksi
-                </label>
-                <TransactionGroupSelect
-                  value={formData.transaction_group_id}
-                  onChange={(value) => setFormData({...formData, transaction_group_id: value})}
-                  type={formData.type}
-                  placeholder="Pilih kelompok transaksi..."
-                />
-              </div>
-
-              {formData.type === 'expense' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Kategori Pengeluaran
-                  </label>
-                  <select
-                    value={formData.expense_category}
-                    onChange={(e) => setFormData({...formData, expense_category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Pilih kategori...</option>
-                    <option value="assets">Aset</option>
-                    <option value="operational">Operasional</option>
-                  </select>
-                </div>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Jumlah
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={formData.amount}
-                  onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tanggal
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={formData.date}
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Catatan
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
-                  placeholder="Catatan tambahan (opsional)"
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingTransaction(null);
-                  }}
-                  className="px-4 py-2 text-gray-600 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className={`px-4 py-2 text-white rounded-lg transition-colors flex items-center space-x-2 ${
-                    saving 
-                      ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-slate-800 hover:bg-slate-700'
-                  }`}
-                >
-                  {saving && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  )}
-                  <span>
-                    {saving 
-                      ? 'Menyimpan...' 
-                      : (editingTransaction ? 'Update' : 'Simpan')
-                    }
-                  </span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Sidebar Modal */}
+      <SidebarModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingTransaction(null);
+        }}
+        title={editingTransaction ? '✏️ Edit Transaksi' : '➕ Tambah Transaksi Baru'}
+        size="lg"
+      >
+        <ModernTransactionForm
+          formData={formData}
+          setFormData={setFormData}
+          onSubmit={handleSubmit}
+          saving={saving}
+          validationErrors={validationErrors}
+          editingTransaction={editingTransaction}
+          onCancel={() => {
+            setShowModal(false);
+            setEditingTransaction(null);
+          }}
+        />
+      </SidebarModal>
     </div>
   );
 };

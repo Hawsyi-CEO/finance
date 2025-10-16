@@ -9,7 +9,8 @@ const TransactionGroupSelect = ({
   onChange, 
   type = 'both', // 'income', 'expense', or 'both'
   placeholder = 'Pilih kelompok transaksi...',
-  required = false 
+  required = false,
+  className = ''
 }) => {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +103,7 @@ const TransactionGroupSelect = ({
         <select
           value={value || ''}
           onChange={handleSelectChange}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800 transition-colors bg-white"
+          className={className || "w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-800 focus:border-slate-800 transition-colors bg-white"}
           required={required}
         >
           <option value="">{placeholder}</option>

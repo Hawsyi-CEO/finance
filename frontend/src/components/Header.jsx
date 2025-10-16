@@ -10,7 +10,7 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
       case 'admin':
         return 'bg-red-100 text-red-800';
       case 'finance':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-slate-100 text-slate-800';
       case 'user':
         return 'bg-green-100 text-green-800';
       default:

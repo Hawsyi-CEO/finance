@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCache } from '../context/CacheContext';
 import { transactionGroupService } from '../services/transactionGroupService';
 import { 
   PlusIcon, 
@@ -14,6 +15,7 @@ import {
 
 const TransactionGroups = () => {
   const { user } = useAuth();
+  const { isCacheValid, getCache, setCache, clearCache } = useCache();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -34,10 +36,25 @@ const TransactionGroups = () => {
   }, []);
 
   const fetchGroups = async () => {
+    // Check if we have valid cached data
+    if (isCacheValid('transactionGroups', 5 * 60 * 1000)) {
+      const cachedData = getCache('transactionGroups');
+      if (cachedData.data) {
+        setGroups(cachedData.data);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       const response = await transactionGroupService.getAll();
-      setGroups(response.data.data || []);
+      const groupsData = response.data.data || [];
+      setGroups(groupsData);
+      
+      // Cache the data
+      setCache('transactionGroups', { data: groupsData });
+      
     } catch (error) {
       console.error('Error fetching groups:', error);
     } finally {
@@ -56,6 +73,8 @@ const TransactionGroups = () => {
         showSuccessMessage('Kelompok baru berhasil ditambahkan!');
       }
       
+      // Clear cache and refresh data
+      clearCache('transactionGroups');
       await fetchGroups();
       resetForm();
     } catch (error) {
@@ -79,6 +98,8 @@ const TransactionGroups = () => {
     if (window.confirm('Apakah Anda yakin ingin menghapus kelompok ini?')) {
       try {
         await transactionGroupService.delete(id);
+        // Clear cache and refresh data
+        clearCache('transactionGroups');
         await fetchGroups();
         showSuccessMessage('Kelompok berhasil dihapus!');
       } catch (error) {
@@ -184,7 +205,7 @@ const TransactionGroups = () => {
               <ChartBarIcon className="h-8 w-8 text-slate-800" />
               <div className="ml-3">
                 <p className="text-sm font-medium text-blue-900">Total Kelompok</p>
-                <p className="text-2xl font-bold text-blue-700">{groups.length}</p>
+                <p className="text-2xl font-bold text-slate-800">{groups.length}</p>
               </div>
             </div>
           </div>
@@ -309,7 +330,7 @@ const TransactionGroups = () => {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-slate-800 transition-colors"
                   placeholder="Masukkan nama kelompok"
                   required
                 />
@@ -322,7 +343,7 @@ const TransactionGroups = () => {
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-slate-800 transition-colors"
                   required
                 >
                   <option value="income">Pemasukan</option>
@@ -337,7 +358,7 @@ const TransactionGroups = () => {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-slate-800 transition-colors"
                   placeholder="Deskripsi kelompok (opsional)"
                   rows="3"
                 />
@@ -358,7 +379,7 @@ const TransactionGroups = () => {
                     type="text"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-slate-800 transition-colors"
                     placeholder="#3B82F6"
                   />
                 </div>

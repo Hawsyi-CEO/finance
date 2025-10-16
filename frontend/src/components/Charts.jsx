@@ -69,7 +69,7 @@ export const ProgressRing = ({ percentage, size = 120, strokeWidth = 8, color = 
     slate: 'stroke-slate-800',
     green: 'stroke-green-500',
     red: 'stroke-red-500',
-    blue: 'stroke-blue-500'
+    blue: 'stroke-slate-800'
   };
 
   return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useCache } from '../context/CacheContext';
 import { 
   DocumentChartBarIcon,
   ArrowDownIcon,
@@ -10,6 +11,7 @@ import { LoadingSpinner } from '../components/LoadingComponents';
 
 const Reports = () => {
   const { user } = useAuth();
+  const { isCacheValid, getCache, setCache } = useCache();
   const [reportType, setReportType] = useState('monthly');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -41,6 +43,17 @@ const Reports = () => {
   }, [reportType, selectedYear, selectedMonth]);
 
   const fetchReportData = async () => {
+    const cacheKey = { type: reportType, year: selectedYear, month: selectedMonth };
+    
+    // Check if we have valid cached data
+    if (isCacheValid('reports', 5 * 60 * 1000, cacheKey)) {
+      const cachedData = getCache('reports', cacheKey);
+      if (cachedData.data) {
+        setReportData(cachedData.data);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const params = {
@@ -52,6 +65,9 @@ const Reports = () => {
       const response = await api.get('/transactions/reports', { params });
       const data = response.data.data;
       setReportData(data);
+      
+      // Cache the data
+      setCache('reports', { data }, cacheKey);
       
     } catch (error) {
       console.error('Error fetching report data:', error);

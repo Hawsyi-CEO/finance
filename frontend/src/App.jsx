@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { CacheProvider } from './context/CacheContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
@@ -14,7 +15,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <CacheProvider>
+        <Router>
         <div className="min-h-screen bg-white">
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -35,6 +37,7 @@ function App() {
           </Routes>
         </div>
       </Router>
+      </CacheProvider>
     </AuthProvider>
   )
 }

@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useCache } from '../context/CacheContext';
 import { 
   CurrencyDollarIcon, 
   ArrowTrendingUpIcon, 
   ArrowTrendingDownIcon, 
   ChartBarIcon,
-  EyeIcon,
-  PlusIcon,
-  FolderIcon
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { LoadingSpinner } from '../components/LoadingComponents';
 
 const Dashboard = () => {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const { isCacheValid, getCache, setCache, shouldRefetchTransactions } = useCache();
   const [stats, setStats] = useState({
     total_income: 0,
     total_expense: 0,
@@ -24,34 +24,94 @@ const Dashboard = () => {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      fetchDashboardData();
-    } else if (!authLoading) {
-      setLoading(false);
-    }
-  }, [isAuthenticated, authLoading]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async (force = false) => {
     try {
-      const [statsResponse, transactionsResponse] = await Promise.all([
-        api.get('/transactions/statistics'),
-        api.get('/transactions?limit=5')
-      ]);
+      // Check if we have valid cached data and not forcing refresh
+      if (!force && isCacheValid('dashboard', 5 * 60 * 1000)) {
+        const cachedData = getCache('dashboard');
+        if (cachedData.stats) {
+          setStats(cachedData.stats);
+        }
+        if (cachedData.transactions) {
+          setRecentTransactions(cachedData.transactions);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Always fetch stats to check transaction count
+      const statsResponse = await api.get('/transactions/statistics');
       
       if (statsResponse.data.success) {
-        setStats(statsResponse.data.data);
-      }
-      
-      if (transactionsResponse.data.success) {
-        setRecentTransactions(transactionsResponse.data.data || []);
+        const newStats = statsResponse.data.data;
+        setStats(newStats);
+        
+        // Check if we need to refetch transactions based on count change
+        const needsTransactionRefetch = shouldRefetchTransactions(newStats.transaction_count);
+        
+        // Get existing cache
+        const existingCache = getCache('dashboard') || {};
+        
+        // Only fetch transactions if:
+        // 1. Never loaded before, OR
+        // 2. Transaction count changed, OR  
+        // 3. Force refresh requested, OR
+        // 4. No cached transactions
+        if (needsTransactionRefetch || force || !existingCache.transactions) {
+          const transactionsResponse = await api.get('/transactions?limit=1');
+          
+          if (transactionsResponse.data.success) {
+            const newTransactions = transactionsResponse.data.data || [];
+            setRecentTransactions(newTransactions);
+            
+            // Update cache with both stats and transactions
+            setCache('dashboard', {
+              stats: newStats,
+              transactions: newTransactions
+            });
+          }
+        } else {
+          // Use cached transactions, update only stats
+          if (existingCache.transactions) {
+            setRecentTransactions(existingCache.transactions);
+          }
+          setCache('dashboard', {
+            stats: newStats,
+            transactions: existingCache.transactions || []
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [isCacheValid, getCache, setCache, shouldRefetchTransactions]);
+
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      fetchDashboardData();
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [isAuthenticated, authLoading, fetchDashboardData]);
+
+  // Refresh function for manual refresh
+  const refreshDashboard = useCallback(() => {
+    setLoading(true);
+    fetchDashboardData(true);
+  }, [fetchDashboardData]);
+
+  // Auto refresh every 10 minutes if user is active
+  useEffect(() => {
+    if (!isAuthenticated || authLoading) return;
+    
+    const interval = setInterval(() => {
+      fetchDashboardData();
+    }, 10 * 60 * 1000); // 10 minutes
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, authLoading, fetchDashboardData]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -65,7 +125,7 @@ const Dashboard = () => {
   if (loading || authLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-slate-800"></div>
       </div>
     );
   }
@@ -99,7 +159,7 @@ const Dashboard = () => {
       </div>
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {/* Total Pemasukan */}
         <div className="bg-white border border-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
           <div className="p-4 md:p-6">
@@ -110,8 +170,8 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="ml-3 md:ml-4 flex-1 min-w-0 overflow-hidden">
-                <p className="text-xs md:text-sm font-medium text-slate-600 mb-1">Total Pemasukan</p>
-                <p className="text-sm md:text-lg font-bold text-slate-800 break-words leading-tight truncate">{formatCurrency(stats.income)}</p>
+                <p className="text-xs font-medium text-slate-600 mb-1 truncate">Total Pemasukan</p>
+                <p className="text-xs md:text-sm font-bold text-slate-800 leading-tight truncate">{formatCurrency(stats.total_income || 0)}</p>
                 <p className="text-xs text-slate-500 mt-1 hidden sm:block">💰 Bulan ini</p>
               </div>
             </div>
@@ -119,7 +179,7 @@ const Dashboard = () => {
         </div>
 
         {/* Total Pengeluaran */}
-        <div className="bg-white border border-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
+        <div className="bg-white border border-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
           <div className="p-4 md:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -128,8 +188,8 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="ml-3 md:ml-4 flex-1 min-w-0 overflow-hidden">
-                <p className="text-xs md:text-sm font-medium text-slate-600 mb-1">Total Pengeluaran</p>
-                <p className="text-sm md:text-lg font-bold text-slate-800 break-words leading-tight truncate">{formatCurrency(Math.abs(stats.expenses))}</p>
+                <p className="text-xs font-medium text-slate-600 mb-1 truncate">Total Pengeluaran</p>
+                <p className="text-xs md:text-sm font-bold text-slate-800 leading-tight truncate">{formatCurrency(Math.abs(stats.total_expense || 0))}</p>
                 <p className="text-xs text-slate-500 mt-1 hidden sm:block">💸 Bulan ini</p>
               </div>
             </div>
@@ -137,7 +197,7 @@ const Dashboard = () => {
         </div>
 
         {/* Saldo */}
-        <div className="bg-white border border-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
+        <div className="bg-white border border-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
           <div className="p-4 md:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -146,8 +206,8 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="ml-3 md:ml-4 flex-1 min-w-0 overflow-hidden">
-                <p className="text-xs md:text-sm font-medium text-slate-600 mb-1">Saldo Bersih</p>
-                <p className={`text-sm md:text-lg font-bold break-words leading-tight truncate ${stats.balance >= 0 ? 'text-slate-800' : 'text-red-600'}`}>
+                <p className="text-xs font-medium text-slate-600 mb-1 truncate">Saldo Bersih</p>
+                <p className={`text-xs md:text-sm font-bold leading-tight truncate ${stats.balance >= 0 ? 'text-slate-800' : 'text-red-600'}`}>
                   {formatCurrency(stats.balance)}
                 </p>
                 <p className={`text-xs mt-1 hidden sm:block ${stats.balance >= 0 ? 'text-slate-500' : 'text-red-500'}`}>
@@ -159,7 +219,7 @@ const Dashboard = () => {
         </div>
 
         {/* Total Transaksi */}
-        <div className="bg-white border border-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">
+        <div className="bg-white border border-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
           <div className="p-4 md:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -168,8 +228,8 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="ml-3 md:ml-4 flex-1 min-w-0 overflow-hidden">
-                <p className="text-xs md:text-sm font-medium text-slate-600 mb-1">Total Transaksi</p>
-                <p className="text-sm md:text-lg font-bold text-slate-800 break-words leading-tight truncate">{stats.transaction_count}</p>
+                <p className="text-xs font-medium text-slate-600 mb-1 truncate">Total Transaksi</p>
+                <p className="text-xs md:text-sm font-bold text-slate-800 leading-tight truncate">{stats.transaction_count || 0}</p>
                 <p className="text-xs text-slate-500 mt-1 hidden sm:block">📊 Semua waktu</p>
               </div>
             </div>
@@ -177,70 +237,43 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Action Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <Link to="/transactions" className="group">
-          <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-4 md:p-6 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 transform hover:scale-105">
-            <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-xl mb-3 md:mb-4 group-hover:bg-blue-500 transition-colors">
-              <PlusIcon className="w-5 h-5 md:w-6 md:h-6 text-blue-600 group-hover:text-white" />
-            </div>
-            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">Tambah Transaksi</h3>
-            <p className="text-gray-600 text-xs md:text-sm">Catat pemasukan atau pengeluaran baru</p>
-          </div>
-        </Link>
 
-        <Link to="/transaction-groups" className="group">
-          <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-4 md:p-6 hover:border-purple-500 hover:bg-purple-50 transition-all duration-200 transform hover:scale-105">
-            <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-xl mb-3 md:mb-4 group-hover:bg-purple-500 transition-colors">
-              <FolderIcon className="w-5 h-5 md:w-6 md:h-6 text-purple-600 group-hover:text-white" />
-            </div>
-            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">Kelola Kelompok</h3>
-            <p className="text-gray-600 text-xs md:text-sm">Atur kelompok transaksi</p>
-          </div>
-        </Link>
-
-        {(user?.role === 'admin' || user?.role === 'finance') && (
-          <Link to="/reports" className="group">
-            <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-slate-500 hover:bg-slate-50 transition-all duration-200 transform hover:scale-105">
-              <div className="flex items-center justify-center w-12 h-12 bg-slate-100 rounded-xl mb-4 group-hover:bg-slate-800 transition-colors">
-                <ChartBarIcon className="w-6 h-6 text-slate-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Laporan Keuangan</h3>
-              <p className="text-gray-600 text-sm">Analisis keuangan bulanan & tahunan</p>
-            </div>
-          </Link>
-        )}
-
-        {(user?.role === 'admin') && (
-          <Link to="/users" className="group">
-            <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-green-500 hover:bg-green-50 transition-all duration-200 transform hover:scale-105">
-              <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-xl mb-4 group-hover:bg-green-500 transition-colors">
-                <UsersIcon className="w-6 h-6 text-green-600 group-hover:text-white" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Kelola User</h3>
-              <p className="text-gray-600 text-sm">Manage pengguna sistem</p>
-            </div>
-          </Link>
-        )}
-      </div>
 
       {/* Recent Transactions */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-lg">
         <div className="px-4 md:px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <h3 className="text-base md:text-lg font-semibold text-gray-900 flex items-center">
-              <ChartBarIcon className="w-4 h-4 md:w-5 md:h-5 mr-2 text-blue-600" />
+              <ChartBarIcon className="w-4 h-4 md:w-5 md:h-5 mr-2 text-slate-800" />
               <span className="hidden sm:inline">Transaksi Terbaru</span>
               <span className="sm:hidden">Transaksi</span>
+              {isCacheValid('dashboard', 5 * 60 * 1000) && (
+                <span className="ml-2 text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                  📋 Cached
+                </span>
+              )}
             </h3>
-            <Link 
-              to="/transactions" 
-              className="text-blue-600 hover:text-blue-800 text-xs md:text-sm font-medium flex items-center"
-            >
-              <span className="hidden sm:inline">Lihat Semua</span>
-              <span className="sm:hidden">Semua</span>
-              <EyeIcon className="w-3 h-3 md:w-4 md:h-4 ml-1" />
-            </Link>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={refreshDashboard}
+                disabled={loading}
+                className="text-slate-600 hover:text-slate-800 text-xs font-medium flex items-center disabled:opacity-50"
+                title="Refresh data"
+              >
+                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </button>
+              <Link 
+                to="/transactions" 
+                className="text-slate-800 hover:text-slate-700 text-xs md:text-sm font-medium flex items-center"
+              >
+                <span className="hidden sm:inline">Lihat Semua</span>
+                <span className="sm:hidden">Semua</span>
+                <EyeIcon className="w-3 h-3 md:w-4 md:h-4 ml-1" />
+              </Link>
+            </div>
           </div>
         </div>
         <div className="p-3 md:p-6">
