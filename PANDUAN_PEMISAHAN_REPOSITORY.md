@@ -1,5 +1,43 @@
 # Panduan Memisahkan Repository Backend dan Frontend
 
+## ⚡ Cara Cepat (Menggunakan Script Otomatis)
+
+Saya sudah membuatkan script otomatis untuk mempermudah proses:
+
+### Langkah 1: Buat Repository di GitHub
+
+1. Buka https://github.com/Hawsyi-CEO
+2. Buat 2 repository baru:
+   - `vertinova-backend` - Backend API untuk Vertinova (Laravel)
+   - `vertinova-frontend` - Frontend aplikasi Vertinova (React + Vite)
+   - **JANGAN** centang "Initialize with README"
+
+### Langkah 2: Jalankan Script
+
+**Untuk Backend:**
+```powershell
+# Klik dua kali file ini atau jalankan di terminal
+.\setup-backend-repo.bat
+```
+
+**Untuk Frontend:**
+```powershell
+# Klik dua kali file ini atau jalankan di terminal
+.\setup-frontend-repo.bat
+```
+
+Script akan otomatis:
+- Inisialisasi git repository baru
+- Menambahkan semua file
+- Membuat commit pertama
+- Memberikan instruksi untuk push ke GitHub
+
+---
+
+## 📋 Cara Manual (Langkah Detail)
+
+Jika Anda ingin melakukan manual atau memahami prosesnya:
+
 ## Langkah 1: Persiapan
 
 Sebelum memulai, pastikan semua perubahan sudah di-commit:
